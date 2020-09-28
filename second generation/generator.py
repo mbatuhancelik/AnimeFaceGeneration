@@ -38,10 +38,10 @@ def ps_block(X , r):
     X = BatchNormalization()(X)
     X = ReLU()(X)
     return X
+#TODO: turn input shape to a number
+def generator_model(input_shape = ( 128 + 39)): 
 
-def generator_model(input_shape = ( 128 + 4096)): 
-
-    X_input = tf.keras.Input(input_shape)
+    X_input = tf.keras.Input(input_shape[1])
 
     X = tf.keras.layers.Dense(16*16*64 , activation = 'relu' ,  kernel_initializer='glorot_uniform')(X_input)
     X = BatchNormalization()(X)
@@ -59,18 +59,27 @@ def generator_model(input_shape = ( 128 + 4096)):
         X = ps_block(X, 2)
     
     X = Conv2D(filters = 3, kernel_size = (9,9) , strides = (1,1), padding = 'same')(X)
-    X = tf.keras.activations.tanh(X)
+    X = tf.keras.activations.sigmoid(X)
     print('final {}'.format(X))
     model = tf.keras.Model(inputs = X_input, outputs = X , name = 'generator')
     
     return model
 
-def generator_loss(fake , real_tags):
+def generator_loss(fake , real_tags , lambda_adv):
     fake_genuity , fake_attributes = fake[0] , fake[1]
+    lambda_adv = tf.constant(lambda_adv , dtype = tf.float32 , shape = (1,1))
+    negative_one = tf.constant(-1 , dtype = tf.float32 , shape = (1,1))
 
-    L_adv = K.log(fake_genuity)
-    L_adv = tf.math.scalar_mul(L_adv , tf.constant(34))
+    L_adv = tf.math.log(fake_genuity)
+    L_adv = tf.math.multiply(L_adv , negative_one)
+    L_adv = tf.math.multiply(L_adv , lambda_adv)
+    
 
-    L_cls = K.log(K.abs(K.update_sub(real_tags, fake_attributes)))
+    #Sadly, I lack the mathematical background to understand how L_cls in the paper works. 
+    #This is just the distance between vectors
+    L_cls = tf.math.squared_difference(real_tags ,fake_attributes)
+    L_cls = tf.math.reduce_sum(L_cls , axis = 1 , keepdims = True)
+    L_cls = tf.sqrt(L_cls)
+    
 
-    return K.sum(L_cls , L_adv)
+    return tf.math.add(L_cls , L_adv)
