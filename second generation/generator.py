@@ -65,9 +65,8 @@ def generator_model(input_shape = ( 128 + 39)):
     
     return model
 
-def generator_loss(fake , real_tags , lambda_adv):
+def generator_loss(fake , real_tags , lambda_adv , lambda_cls):
     fake_genuity , fake_attributes = fake[0] , fake[1]
-    lambda_adv = tf.constant(lambda_adv , dtype = tf.float32 , shape = (1,1))
     negative_one = tf.constant(-1 , dtype = tf.float32 , shape = (1,1))
 
     L_adv = tf.math.log(fake_genuity)
@@ -80,6 +79,7 @@ def generator_loss(fake , real_tags , lambda_adv):
     L_cls = tf.math.squared_difference(real_tags ,fake_attributes)
     L_cls = tf.math.reduce_sum(L_cls , axis = 1 , keepdims = True)
     L_cls = tf.sqrt(L_cls)
+    L_cls = tf.math.multiply(L_cls ,lambda_cls)
     
 
-    return tf.math.add(L_cls , L_adv)
+    return tf.math.add(L_cls , L_adv), L_adv , L_cls
