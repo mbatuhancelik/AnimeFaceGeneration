@@ -61,7 +61,7 @@ def discriminator_model(input_shape = (128 , 128 , 3), num_features = 39):
     tags = tf.keras.layers.Dense(num_features)(X)
     tags = tf.keras.activations.sigmoid(tags)
 
-    Model = tf.keras.Model(inputs = X_input , outputs = [discrimination , tags])
+    Model = tf.keras.Model(inputs = X_input , outputs = [discrimination , tags], name = 'discriminator')
 
     return Model 
 

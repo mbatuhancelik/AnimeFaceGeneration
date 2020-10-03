@@ -1,5 +1,9 @@
-import tensorflow as tf
 # tutorial : https://keras.io/examples/generative/wgan_gp/#:~:text=Wasserstein%20GAN%20(WGAN)%20with%20Gradient%20Penalty%20(GP)&text=WGAN%20requires%20that%20the%20discriminator,space%20of%201-Lipschitz%20functions.&text=Instead%20of%20clipping%20the%20weights,discriminator%20gradients%20close%20to%201.
+import tensorflow as tf
+import os
+import numpy as np
+import pickle
+
 class WGAN(tf.keras.Model):
     def __init__(
         self,
@@ -31,6 +35,65 @@ class WGAN(tf.keras.Model):
         self.generator_optimizer = g_optimizer
         self.discriminator_loss = d_loss
         self.generator_loss = g_loss
+
+    def save_field(self, save_dir, field, name): 
+        
+        save_file_path = "{}\\{}.field".format(save_dir, name)
+        save_file = open(save_file_path , "wb+")
+
+        pickle.dump(field, save_file)
+        
+    def save(self, save_dir): 
+        save_dir = save_dir + "\\model"
+        if  not os.path.isdir(save_dir):
+            os.mkdir(save_dir)
+        else:
+            print("SAVING OVER A EXISTING MODEL!!!!")
+        
+        dis_save_file = open("{}\\discriminator.h5".format(save_dir ), "w+")
+        gen_save_file = open("{}\\generator.h5".format(save_dir ), "w+")
+        dis_save_file.close()
+        gen_save_file.close()
+
+        self.discriminator.save(dis_save_file.name , save_format = "h5")
+        self.generator.save(gen_save_file.name , save_format = "h5")
+
+        self.save_field(save_dir , self.generator_optimizer.get_config(), "generator_optimizer") 
+        self.save_field(save_dir , self.discriminator_optimizer.get_config(), "discriminator_optimizer")
+        self.save_field(save_dir , self.discriminator_loss, "discriminator_loss")
+        self.save_field(save_dir , self.generator_loss, "generator_loss")
+        
+        self.save_field(save_dir , self.discriminator_steps, "discriminator_steps")
+        self.save_field(save_dir , self.discriminator_lambda_adv, "discriminator_lambda_adv")
+        self.save_field(save_dir , self.discriminator_lambda_cls, "discriminator_lambda_cls")
+        self.save_field(save_dir , self.discriminator_lambda_gp, "discriminator_lambda_gp")
+
+        self.save_field(save_dir , self.generator_lambda_adv, "generator_lambda_adv")
+        self.save_field(save_dir , self.generator_lambda_cls, "generator_lambda_cls")
+    
+    def pickle_load(self, path): 
+        file = open(path, "rb+")
+        return pickle.load(file)
+    def load(self, save_dir): 
+        self.generator = tf.keras.models.load_model("{}\\generator.h5".format(save_dir))
+        self.discriminator = tf.keras.models.load_model("{}\\discriminator.h5".format(save_dir))
+
+        generator_optimizer_config = self.pickle_load("{}\\generator_optimizer.field".format(save_dir))
+        discriminator_optimizer_config = self.pickle_load("{}\\discriminator_optimizer.field".format(save_dir))
+        discriminator_optimizer = tf.keras.optimizers.Adam.from_config(discriminator_optimizer_config)
+        generator_optimizer = tf.keras.optimizers.Adam.from_config(generator_optimizer_config)
+
+        discriminator_loss = self.pickle_load("{}\\discriminator_loss.field".format(save_dir))
+        generator_loss = self.pickle_load("{}\\generator_loss.field".format(save_dir))
+
+        self.compile(discriminator_optimizer , generator_optimizer , discriminator_loss , generator_loss)
+
+        self.generator_lambda_adv = self.pickle_load("{}\\generator_lambda_adv.field".format(save_dir))
+        self.generator_lambda_cls = self.pickle_load("{}\\generator_lambda_cls.field".format(save_dir))
+
+        self.discriminator_lambda_adv = self.pickle_load("{}\\discriminator_lambda_adv.field".format(save_dir))
+        self.discriminator_lambda_cls = self.pickle_load("{}\\discriminator_lambda_cls.field".format(save_dir))
+        self.discriminator_lambda_gp = self.pickle_load("{}\\discriminator_lambda_gp.field".format(save_dir))
 
     def gradient_penalty(self,batch_size, real_images, fake_images):
         
