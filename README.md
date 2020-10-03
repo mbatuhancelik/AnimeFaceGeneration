@@ -19,8 +19,6 @@ This generation is not trained yet, therefore, I cant share results.
 
 This repo could be useful only if I was able to implement the paper completely. Sadly, that's not the case and I could not understand the L_cls of lost function. Moreover, I was too lazy to check all of their references, so there are some hyperparameters I dont know. 
 
-Even though, if there are some tensorflow beginners like me, and they wonder how could this paper be implemented, this is what it would resemble. Hope this will help someone someday. 
-
 
 
 
