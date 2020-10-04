@@ -61,24 +61,24 @@ def discriminator_model(input_shape = (128 , 128 , 3), num_features = 39):
     tags = tf.keras.layers.Dense(num_features)(X)
     tags = tf.keras.activations.sigmoid(tags)
 
-    Model = tf.keras.Model(inputs = X_input , outputs = [discrimination , tags])
+    Model = tf.keras.Model(inputs = X_input , outputs = [discrimination , tags], name = "discriminator")
 
     return Model 
 
-def discriminator_loss(real , fake, real_tags, lambda_adv): 
+def discriminator_loss(real , fake, real_tags, lambda_adv, lambda_cls): 
     
     real_genuity , real_attributes = real[0] , real[1]
     fake_genuity , fake_attributes = fake[0] , fake[1]
 
 
     negative_one = tf.constant(-1 , dtype = tf.float32 , shape = (1,1))
-    lambda_adv = tf.constant(lambda_adv , dtype = tf.float32 , shape = (1,1))
 
     L_adv = tf.math.add(
                         tf.math.log(real_genuity) , 
                         tf.math.log(tf.math.subtract(tf.ones(fake_genuity.shape), fake_genuity))
                         )
     L_adv = tf.math.multiply(negative_one,L_adv)
+    L_adv = tf.multiply(L_adv , lambda_adv)
     
     #Sadly, I lack the mathematical background to understand how L_cls in the paper works. 
     #This is just the distance between feature vectors
@@ -92,4 +92,4 @@ def discriminator_loss(real , fake, real_tags, lambda_adv):
     
     L_cls = tf.math.add(geniune_fake , geniune_real)
     
-    return tf.math.add(L_cls , tf.multiply(L_adv , lambda_adv))
+    return tf.math.add(L_cls , L_adv), L_adv, L_cls
