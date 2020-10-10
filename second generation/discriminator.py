@@ -61,11 +61,11 @@ def discriminator_model(input_shape = (128 , 128 , 3), num_features = 39):
     tags = tf.keras.layers.Dense(num_features)(X)
     tags = tf.keras.activations.sigmoid(tags)
 
-    Model = tf.keras.Model(inputs = X_input , outputs = [discrimination , tags], name = 'discriminator')
+    Model = tf.keras.Model(inputs = X_input , outputs = [discrimination , tags], name = "discriminator")
 
     return Model 
 
-def discriminator_loss(real , fake, real_tags, lambda_adv , lambda_cls): 
+def discriminator_loss(real , fake, real_tags, lambda_adv, lambda_cls): 
     
     real_genuity , real_attributes = real[0] , real[1]
     fake_genuity , fake_attributes = fake[0] , fake[1]
