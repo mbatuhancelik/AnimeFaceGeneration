@@ -27,6 +27,7 @@ class WGAN(tf.keras.Model):
 
         self.generator_lambda_adv = tf.constant(generator_lambda_adv, dtype = tf.float32 , shape = (1,1))
         self.generator_lambda_cls = tf.constant(generator_lambda_cls, dtype = tf.float32 , shape = (1,1))
+        
 
     def compile(self, d_optimizer, g_optimizer, d_loss, g_loss):
         super(WGAN, self).compile()
@@ -113,7 +114,6 @@ class WGAN(tf.keras.Model):
         # 3. Calcuate the norm of the gradients
         norm = tf.sqrt(tf.reduce_sum(tf.square(grads), axis=[1, 2, 3]))
         gp = tf.reduce_mean((norm - 1.0) ** 2)
-        gp = tf.reshape(gp, (1,1))
         return gp
 
     def train_step(self , batch):
@@ -143,7 +143,6 @@ class WGAN(tf.keras.Model):
                                                                                             lambda_cls = self.discriminator_lambda_cls 
                                                                                             )
                 gp = self.gradient_penalty( 1, real_images , fake_images)
-                gp = self.discriminator_lambda_gp * gp
 
                 d_loss  = d_cost + self.discriminator_lambda_gp * gp
             d_gradient = disc_tape.gradient(d_loss , self.discriminator.trainable_variables)
