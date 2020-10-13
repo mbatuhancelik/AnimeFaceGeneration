@@ -36,8 +36,11 @@ class custom_callback(tf.keras.callbacks.Callback):
 
         folders = os.listdir(save_dir)
         self.epoch = len(folders)
-        self.x_axis = [x for x in range (self.epoch)]
+        self.x_axis = []
         self.losses={}
+        
+        
+        
         
         if self.epoch != 0: 
             last_folder = folders.pop()
@@ -46,8 +49,13 @@ class custom_callback(tf.keras.callbacks.Callback):
             losses = os.listdir(last_losses_save)
             
             for loss in losses: 
-                print(loss)
                 self.losses[loss.split('.')[0]] = np.load("{}\\{}".format(last_losses_save, loss))
+            self.x_axis = [x for x in range (len(self.losses['d_loss']))]
+            
+            
+            
+            
+        
 
     # generates sample images and displays them, has a significant runtime for 33 images
     def images(self, save_path):
@@ -80,49 +88,38 @@ class custom_callback(tf.keras.callbacks.Callback):
             imgs.save(fl, format = "png")
             fl.close()            
         plt.savefig('{}\\waifus.png'.format(save_path),dpi = 300)
-        plt.show()
+        #plt.show()
         
 
-    def plot_shit(self , keywords, subplot): 
-        colors = []
+    def plot_shit(self , keywords, subplot):
+
+        colors = iter(['#1f77b4','#ff7f0e','#2ca02c','#d62728'])
+        lines = []
         for keyword in keywords: 
-            a, = subplot.plot(self.x_axis , self.losses[keyword], label = keyword)
-            colors.append(a)
-        subplot.legend(handles = colors, loc = 'upper left',bbox_to_anchor=(1.05, 1))
-
-    # plots losses of each model
-    def plot_losses(self,save_path): 
+            a, = subplot.plot(self.x_axis , self.losses[keyword],next(colors), label = keyword)
+            lines.append(a)
+        subplot.legend(handles = lines, loc = 'best')
         
-        f, ((ax1,fake1 ,ax2),(ax3,fake2,ax4))  = plt.subplots(2, 3, sharex=True, dpi = 200)
-        self.plot_shit(['d_loss_adv', 'g_loss_adv'],ax1)
-        self.plot_shit(['d_loss', 'g_loss'],ax2)
-        self.plot_shit(['g_loss','g_loss_adv', 'g_loss_cls'],ax3)
-        self.plot_shit(['d_loss','d_loss_adv','d_loss_cls','d_loss_gp'],ax4)
+    def plot_losses(self): 
+        
+        
+        self.plot_shit(['d_loss_adv', 'g_loss_adv'],self.ax1)
+        self.plot_shit(['d_loss', 'g_loss'],self.ax2)
+        self.plot_shit(['g_loss','g_loss_adv', 'g_loss_cls'],self.ax3)
+        self.plot_shit(['d_loss','d_loss_adv','d_loss_cls','d_loss_gp'],self.ax4)
+        
+        self.losses_figure.canvas.draw()
 
+        
 
-        fake1.set_visible(False)
-        fake2.set_visible(False)
-
-       
-        plt.savefig('{}\\losses.png'.format(save_path),dpi = 200)
+    def on_train_begin(self, logs = None): 
+        self.losses_figure, (self.ax1,self.ax2,self.ax3,self.ax4)= plt.subplots(4, 1, dpi = 100, figsize= (10,20))
+        plt.ion()
         plt.show()
 
-    
-    
-    def on_epoch_end(self , epoch , logs = None):
-        #epoch += self.previous_epochs
-        self.epoch += 1
-        self.x_axis.append(self.epoch)
-        if self.epoch % self.checkpoint != 0:
-            return
-       
-        save_path = self.save_dir + "\\epoch_{}".format(self.epoch)
-        os.mkdir(save_path)
-        
-        if self.will_save_model:
-            self.model.save(save_path)
-        
-        
+    def on_batch_end(self,batch ,logs = None): 
+        self.x_axis.append(len(self.x_axis))
+
         test = not self.losses
         if test: 
             for log in logs: 
@@ -130,9 +127,23 @@ class custom_callback(tf.keras.callbacks.Callback):
         else: 
             for log in logs:
                 self.losses[log] = np.append(self.losses[log],logs[log][0][0])
+                
+        self.plot_losses()
+                
 
-        if self.will_plot_losses:
-            self.plot_losses(save_path)
+    def on_epoch_end(self , epoch , logs = None):
+        self.epoch += 1
+        
+        if self.epoch % self.checkpoint != 0:
+            return
+       
+
+        save_path = self.save_dir + "\\epoch_{}".format(self.epoch)
+        os.mkdir(save_path)
+        
+        if self.will_save_model:
+            self.model.save(save_path)
+
 
         if self.will_save_images:
             self.images(save_path)

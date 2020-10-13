@@ -91,6 +91,7 @@ def discriminator_loss(real , fake, real_tags, lambda_adv, lambda_cls):
     geniune_fake = tf.sqrt(geniune_fake)
     
     L_cls = tf.math.add(geniune_fake , geniune_real)
+    
     L_cls = tf.multiply(L_cls , lambda_cls)
     
     return tf.math.add(L_cls , L_adv) , L_adv , L_cls
