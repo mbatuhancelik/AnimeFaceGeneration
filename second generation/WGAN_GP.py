@@ -113,17 +113,18 @@ class WGAN(tf.keras.Model):
         # 3. Calcuate the norm of the gradients
         norm = tf.sqrt(tf.reduce_sum(tf.square(grads), axis=[1, 2, 3]))
         gp = tf.reduce_mean((norm - 1.0) ** 2, keepdims= True)
-        return gp
+        return tf.reshape(gp,(1,1))
 
-    def train_step(self , batch):
-        assert(len(batch) == 2)
-        real_images = batch[0]
-        real_classes = batch[1]
+    def train_step(self , data):
+        assert(len(data) == 2)
+        real_images = data[0]
+        real_classes = data[1]
+    
+        batch_size = tf.shape(real_images)[0]
         
-        class_size = real_classes.shape[-1]
 
         
-        noise = tf.random.uniform([1, 128])
+        noise = tf.random.uniform([batch_size, 128])
         noise = tf.concat([noise , real_classes], axis = -1)
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
             fake_images = self.generator(noise , training = True)
@@ -141,7 +142,7 @@ class WGAN(tf.keras.Model):
                                                                                             lambda_adv = self.discriminator_lambda_adv,
                                                                                             lambda_cls = self.discriminator_lambda_cls 
                                                                                             )
-                gp = self.gradient_penalty( 1, real_images , fake_images)
+                gp = self.gradient_penalty( batch_size, real_images , fake_images)
                 gp = self.discriminator_lambda_gp * gp
 
                 d_loss  = d_cost + gp
@@ -159,3 +160,4 @@ class WGAN(tf.keras.Model):
             )
         return {"d_loss": d_loss,"d_loss_adv" :discriminator_L_adv , "d_loss_cls" :discriminator_L_cls, "d_loss_gp": gp,
                  "g_loss": g_loss, "g_loss_cls" :generator_L_adv , "g_loss_adv" :generator_L_cls }
+    

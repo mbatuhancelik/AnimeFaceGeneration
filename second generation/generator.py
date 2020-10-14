@@ -38,10 +38,9 @@ def ps_block(X , r):
     X = BatchNormalization()(X)
     X = ReLU()(X)
     return X
-#TODO: turn input shape to a number
 def generator_model(input_shape = ( 128 + 39)): 
 
-    X_input = tf.keras.Input(input_shape[1])
+    X_input = tf.keras.Input((input_shape,))
 
     X = tf.keras.layers.Dense(16*16*64 , activation = 'relu' ,  kernel_initializer='glorot_uniform')(X_input)
     X = BatchNormalization()(X)
@@ -72,14 +71,16 @@ def generator_loss(fake , real_tags , lambda_adv, lambda_cls):
     L_adv = tf.math.log(fake_genuity)
     L_adv = tf.math.multiply(L_adv , negative_one)
     L_adv = tf.math.multiply(L_adv , lambda_adv)
+    L_adv = tf.math.reduce_sum(L_adv , axis = 0, keepdims = True)
     
 
     #Sadly, I lack the mathematical background to understand how L_cls in the paper works. 
     #This is just the distance between vectors
     L_cls = tf.math.squared_difference(real_tags ,fake_attributes)
-    L_cls = tf.math.reduce_sum(L_cls , axis = 1 , keepdims = True)
+    L_cls = tf.math.reduce_sum(L_cls , axis = -1 , keepdims = True)
     L_cls = tf.sqrt(L_cls)
     L_cls = tf.math.multiply(L_cls , lambda_cls)
+    L_cls = tf.math.reduce_sum(L_cls, axis = 0, keepdims = True)
     
 
     return tf.math.add(L_cls , L_adv) , L_adv,L_cls

@@ -13,7 +13,7 @@ class custom_callback(tf.keras.callbacks.Callback):
         checkpoint = 1, 
         save_dataset_path ='F:\\messy code\\afg ordered\\second generation\\save_dataset',
         save_model = True, 
-        plot_losses = True, 
+        plot_losses = False, 
         save_images = True
     ):
         
@@ -39,9 +39,6 @@ class custom_callback(tf.keras.callbacks.Callback):
         self.x_axis = []
         self.losses={}
         
-        
-        
-        
         if self.epoch != 0: 
             last_folder = folders.pop()
             
@@ -51,11 +48,6 @@ class custom_callback(tf.keras.callbacks.Callback):
             for loss in losses: 
                 self.losses[loss.split('.')[0]] = np.load("{}\\{}".format(last_losses_save, loss))
             self.x_axis = [x for x in range (len(self.losses['d_loss']))]
-            
-            
-            
-            
-        
 
     # generates sample images and displays them, has a significant runtime for 33 images
     def images(self, save_path):
@@ -102,20 +94,20 @@ class custom_callback(tf.keras.callbacks.Callback):
         
     def plot_losses(self): 
         
-        
         self.plot_shit(['d_loss_adv', 'g_loss_adv'],self.ax1)
         self.plot_shit(['d_loss', 'g_loss'],self.ax2)
         self.plot_shit(['g_loss','g_loss_adv', 'g_loss_cls'],self.ax3)
         self.plot_shit(['d_loss','d_loss_adv','d_loss_cls','d_loss_gp'],self.ax4)
         
+        
         self.losses_figure.canvas.draw()
 
-        
-
     def on_train_begin(self, logs = None): 
+        
         self.losses_figure, (self.ax1,self.ax2,self.ax3,self.ax4)= plt.subplots(4, 1, dpi = 100, figsize= (10,20))
         plt.ion()
-        plt.show()
+        if self.will_plot_losses:
+            plt.show()
 
     def on_batch_end(self,batch ,logs = None): 
         self.x_axis.append(len(self.x_axis))
@@ -128,9 +120,9 @@ class custom_callback(tf.keras.callbacks.Callback):
             for log in logs:
                 self.losses[log] = np.append(self.losses[log],logs[log][0][0])
                 
-        self.plot_losses()
+            if self.will_plot_losses:
+                self.plot_losses()
                 
-
     def on_epoch_end(self , epoch , logs = None):
         self.epoch += 1
         
@@ -154,3 +146,4 @@ class custom_callback(tf.keras.callbacks.Callback):
         
         for loss in self.losses:
             np.save('{}\\{}'.format(save_losses_path,loss), self.losses[loss])
+   

@@ -75,10 +75,11 @@ def discriminator_loss(real , fake, real_tags, lambda_adv, lambda_cls):
 
     L_adv = tf.math.add(
                         tf.math.log(real_genuity) , 
-                        tf.math.log(tf.math.subtract(tf.ones(fake_genuity.shape), fake_genuity))
+                        tf.math.log(tf.math.subtract(tf.ones(tf.shape(fake_genuity)), fake_genuity))
                         )
     L_adv = tf.math.multiply(negative_one,L_adv)
     L_adv = tf.multiply(L_adv , lambda_adv)
+    L_adv = tf.math.reduce_sum(L_adv , axis = 0, keepdims = True)
     
     #Sadly, I lack the mathematical background to understand how L_cls in the paper works. 
     #This is just the distance between feature vectors
@@ -93,5 +94,7 @@ def discriminator_loss(real , fake, real_tags, lambda_adv, lambda_cls):
     L_cls = tf.math.add(geniune_fake , geniune_real)
     
     L_cls = tf.multiply(L_cls , lambda_cls)
+    L_cls = tf.math.reduce_sum(L_cls , axis = 0, keepdims = True)
     
     return tf.math.add(L_cls , L_adv) , L_adv , L_cls
+discriminator = discriminator_model()
