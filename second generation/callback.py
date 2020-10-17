@@ -1,9 +1,8 @@
 import tensorflow as tf
 import os
-from datetime import datetime
-import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
+import pickle
 
 class custom_callback(tf.keras.callbacks.Callback):
     
@@ -11,17 +10,18 @@ class custom_callback(tf.keras.callbacks.Callback):
         self,
         save_dir,
         checkpoint = 1, 
-        save_dataset_path ='F:\\messy code\\afg ordered\\second generation\\save_dataset',
+        save_dataset_path ='/content/save_dataset',
         save_model = True, 
-        plot_losses = False, 
-        save_images = True
+        save_images = True,
     ):
         
         self.checkpoint = checkpoint #how many epochs will pass between saves
-        self.save_dir = save_dir
+        self.save_dir = save_dir + "/saves"
+        
+        if not os.path.isdir(self.save_dir):
+            os.mkdir(self.save_dir)
 
         self.will_save_model = save_model
-        self.will_plot_losses = plot_losses
         self.will_save_images = save_images
 
         name_spec = tf.TensorSpec((None) , dtype = tf.string)
@@ -33,105 +33,106 @@ class custom_callback(tf.keras.callbacks.Callback):
                                             element_spec = (name_spec, img_spec,feature_spec, noise_spec),
                                             compression='GZIP', 
                                             reader_func=None )
-
-        folders = os.listdir(save_dir)
+        folders = os.listdir(self.save_dir)
         self.epoch = len(folders)
-        self.x_axis = []
-        self.losses={}
         
-        if self.epoch != 0: 
-            last_folder = folders.pop()
-            
-            last_losses_save = '{}\\{}\\losses'.format(save_dir, last_folder)
-            losses = os.listdir(last_losses_save)
-            
-            for loss in losses: 
-                self.losses[loss.split('.')[0]] = np.load("{}\\{}".format(last_losses_save, loss))
-            self.x_axis = [x for x in range (len(self.losses['d_loss']))]
-
-    # generates sample images and displays them, has a significant runtime for 33 images
-    def images(self, save_path):
-        plt.figure(figsize=(11,17),dpi = 300)
+        self.log_steps = 0
         
-
-        counter = 1 
-        for data in self.dataset:
-
-            name , img , feature , noises = data
-
-            imgs = img
-
-            plt.subplot( 17,2 ,counter)
-            plt.axis("off")
-            counter += 1
-
-            #Note: generating images using a (5,167) noise could be faster, remember that if you gonna try to get 
-            #one epoch train in less than an hour
-            for noise in noises: 
-
-                noise = tf.concat([tf.reshape(noise , (1,128)), feature], axis = -1)
-                img = self.model.generator(noise)          
-                imgs = tf.concat([imgs , img] , axis = 2)
+        self.log_dir = save_dir + "/logs"
+        log_dir = self.log_dir
+        self.log_steps_save = self.log_dir + "/log_steps.pkl"
+        if os.path.isfile(self.log_steps_save):
+            self.log_steps = pickle.load(open(self.log_steps_save, "rb+"))
+        
+        
     
-            imgs = ((imgs.numpy() * 255).astype("uint8"))[0]
-            plt.imshow(imgs, aspect='auto')
-            imgs = Image.fromarray(imgs)
-            fl = open("{}\\{}.png".format(save_path ,name.numpy().decode("utf-8").split('.')[0]) , "wb+")
-            imgs.save(fl, format = "png")
-            fl.close()            
-        plt.savefig('{}\\waifus.png'.format(save_path),dpi = 300)
-        #plt.show()
         
+        self.summary_writers = {
+            'd_loss': tf.summary.create_file_writer(log_dir +"/d_loss"),
+            'g_loss': tf.summary.create_file_writer(log_dir +"/g_loss"),
+            'd_loss_adv': tf.summary.create_file_writer(log_dir +"/d_loss_adv"),
+            'd_loss_cls': tf.summary.create_file_writer(log_dir +"/d_loss_cls"),
+            'd_loss_gp': tf.summary.create_file_writer(log_dir +"/d_loss_gp"),
+            'g_loss_adv': tf.summary.create_file_writer(log_dir +"/g_loss_adv"),
+            'g_loss_cls': tf.summary.create_file_writer(log_dir +"/g_loss_cls"),
+            'image': tf.summary.create_file_writer(log_dir +"/image")
+        }
 
-    def plot_shit(self , keywords, subplot):
+    # generates sample images, has a significant runtime for 33  images
+    def images(self, save_path):
+        
+        with self.summary_writers['image'].as_default():
+          imgs = []
+          for data in self.dataset:
 
-        colors = iter(['#1f77b4','#ff7f0e','#2ca02c','#d62728'])
-        lines = []
-        for keyword in keywords: 
-            a, = subplot.plot(self.x_axis , self.losses[keyword],next(colors), label = keyword)
-            lines.append(a)
-        subplot.legend(handles = lines, loc = 'best')
-        
-    def plot_losses(self): 
-        
-        self.plot_shit(['d_loss_adv', 'g_loss_adv'],self.ax1)
-        self.plot_shit(['d_loss', 'g_loss'],self.ax2)
-        self.plot_shit(['g_loss','g_loss_adv', 'g_loss_cls'],self.ax3)
-        self.plot_shit(['d_loss','d_loss_adv','d_loss_cls','d_loss_gp'],self.ax4)
-        
-        
-        self.losses_figure.canvas.draw()
+              name , img , feature , noises = data
 
-    def on_train_begin(self, logs = None): 
-        
-        self.losses_figure, (self.ax1,self.ax2,self.ax3,self.ax4)= plt.subplots(4, 1, dpi = 100, figsize= (10,20))
-        plt.ion()
-        if self.will_plot_losses:
-            plt.show()
+              name = name.numpy().decode("utf-8").split('.')[0]
 
+              feature = feature.numpy()[0]
+              feature = tf.constant([feature,feature,feature,feature,feature])
+              noise = tf.concat([noises, feature], axis = -1)
+              fake_images = self.model.generator(noise)  
+              img = img[0]
+              for f in fake_images:
+                  img = tf.concat([img,f], axis = 1)
+              
+      
+              img = ((img.numpy() * 255).astype("uint8"))
+                  
+              img = Image.fromarray(img)
+              imgs.append(img)
+              fl = open("{}/{}.png".format(save_path ,name) , "wb+")
+              img.save(fl, format = "png")
+              fl.close() 
+              
+          img_w, img_h = imgs[0].size
+          offset = 15 # num of pixels between images
+          background = Image.new('RGB',(img_w*3 + offset*2, img_h*11+ offset * 10), (255, 255, 255))
+          images = iter(imgs)
+          for y in range(11): 
+              for x in range(3):
+                  background.paste(next(images),( x*img_w + 15*x,y*img_h + 15*y))
+                  
+          fl = open("{}/{}.png".format(save_path ,"all") , "wb+")
+          background.save(fl, format = "png")
+          fl.close() 
+          
+          bg_w , bg_h = background.size
+          as_tensor = tf.constant([np.array(background)/255])
+          tf.summary.image('examples',as_tensor,step = self.epoch)
+        
     def on_batch_end(self,batch ,logs = None): 
-        self.x_axis.append(len(self.x_axis))
-
-        test = not self.losses
-        if test: 
-            for log in logs: 
-                self.losses[log] = logs[log][0]
-        else: 
-            for log in logs:
-                self.losses[log] = np.append(self.losses[log],logs[log][0][0])
-                
-            if self.will_plot_losses:
-                self.plot_losses()
-                
-    def on_epoch_end(self , epoch , logs = None):
-        self.epoch += 1
+              
+        with self.summary_writers['d_loss'].as_default():
+            tf.summary.scalar('discriminator',logs['d_loss'][0][0],step = self.log_steps)
+        with self.summary_writers['d_loss_adv'].as_default():
+            tf.summary.scalar('discriminator',logs['d_loss_adv'][0][0],step = self.log_steps)
+            tf.summary.scalar('discriminator vs generator',logs['d_loss_adv'][0][0],step = self.log_steps)
+        with self.summary_writers['d_loss_cls'].as_default():
+            tf.summary.scalar('discriminator',logs['d_loss_cls'][0][0],step = self.log_steps)
+        with self.summary_writers['d_loss_gp'].as_default():
+            tf.summary.scalar('discriminator',logs['d_loss_gp'][0][0],step = self.log_steps)
+        with self.summary_writers['g_loss'].as_default():
+            tf.summary.scalar('generator',logs['g_loss'][0][0],step = self.log_steps)
+        with self.summary_writers['g_loss_adv'].as_default():
+            tf.summary.scalar('generator',logs['g_loss_adv'][0][0],step = self.log_steps)
+            tf.summary.scalar('discriminator vs generator',logs['g_loss_adv'][0][0],step = self.log_steps)
+        with self.summary_writers['g_loss_cls'].as_default():
+            tf.summary.scalar('generator',logs['g_loss_cls'][0][0],step = self.log_steps)
+        self.log_steps +=1
         
-        if self.epoch % self.checkpoint != 0:
-            return
+
+        save_file = open(self.log_steps_save, "wb+")
+        pickle.dump(self.log_steps, save_file)
+                
+
+    def on_epoch_end(self , epoch , logs = None):
        
 
-        save_path = self.save_dir + "\\epoch_{}".format(self.epoch)
-        os.mkdir(save_path)
+        save_path = self.save_dir + "/epoch_{}".format(self.epoch)
+        if not os.path.isdir(save_path):
+            os.mkdir(save_path)
         
         if self.will_save_model:
             self.model.save(save_path)
@@ -139,11 +140,3 @@ class custom_callback(tf.keras.callbacks.Callback):
 
         if self.will_save_images:
             self.images(save_path)
-        
-        
-        save_losses_path = "{}\\losses".format(save_path)
-        os.mkdir(save_losses_path)
-        
-        for loss in self.losses:
-            np.save('{}\\{}'.format(save_losses_path,loss), self.losses[loss])
-   
