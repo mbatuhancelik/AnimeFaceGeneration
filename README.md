@@ -16,14 +16,3 @@ gradient penalty : https://medium.com/@jonathan_hui/gan-wasserstein-gan-wgan-gp-
 gradient penalty implementation : https://keras.io/examples/generative/wgan_gp/#:~:text=Wasserstein%20GAN%20(WGAN)%20with%20Gradient%20Penalty%20(GP)&text=WGAN%20requires%20that%20the%20discriminator,space%20of%201-Lipschitz%20functions.
 
 This generation is not trained yet, therefore, I cant share results. 
-
-This repo could be useful only if I was able to implement the paper completely. Sadly, that's not the case and I could not understand the L_cls of lost function. Moreover, I was too lazy to check all of their references, so there are some hyperparameters I dont know. 
-
-
-
-
-
-
-
-
-
